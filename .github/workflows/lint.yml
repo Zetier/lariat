@@ -1,0 +1,35 @@
+name: Lint
+
+on:
+  workflow_call:
+
+jobs:
+  mypy:
+    runs-on: ubuntu-latest
+    name: mypy
+    steps:
+    - uses: actions/checkout@v1
+    - name: mypy
+      uses: docker://le91688/dockerized_mypy:3.8-1.3.0
+      with:
+        args: .
+
+  black:
+    runs-on: ubuntu-latest
+    name: black
+    steps:
+    - uses: actions/checkout@v1
+    - name: black
+      uses: docker://pyfound/black:23.3.0
+      with:
+        args: black --check src/farmhand
+
+  isort:
+    runs-on: ubuntu-latest
+    name: isort
+    steps:
+    - uses: actions/checkout@v1
+    - name: isort
+      uses: docker://le91688/dockerized_isort:3.8-5.12.0
+      with:
+        args: -c src/farmhand
