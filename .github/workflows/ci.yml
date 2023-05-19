@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  call-lint:
+    uses: ./.github/workflows/lint.yml
+
+  call-deploy:
+    if: contains(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    needs: [call-lint]
+
+  call-publish:
+    if: contains(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit
+    needs: [call-lint]
+
+
+
+
