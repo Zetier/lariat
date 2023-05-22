@@ -368,6 +368,15 @@ if __name__ == '__main__':
                 "failed to get remote url")
             continue
 
+
+
+
+
+
+
+
+
+
         adb_device = adb_connect_device(url, key_signer)
         if adb_device is None:
             unlock_device(swagger_client, request_options, stf_device['serial'])
