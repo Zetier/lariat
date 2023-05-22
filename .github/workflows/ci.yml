@@ -14,4 +14,4 @@ jobs:
         id: autoyapf
         uses: mritunjaysharma394/autoyapf@v2
         with:
-          args: --style google .
+          args: --style google farmhand.py
