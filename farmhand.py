@@ -155,6 +155,69 @@ def get_devices(client: SwaggerClient, request_opts: typing.Dict,
     return ready_devices
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def lock_device(client: SwaggerClient, request_opts: typing.Dict,
                 serial: str) -> bool:
     """Locks a device by adding it to the user's control.
