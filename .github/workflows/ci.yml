@@ -29,4 +29,4 @@ jobs:
     - name: isort
       uses: docker://le91688/dockerized_isort:3.8-5.12.0
       with:
-        args: --c farmhand.py
+        args: -c farmhand.py
