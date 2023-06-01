@@ -16,15 +16,19 @@ jobs:
     - name: mypy
       run: |
         mypy .
-
-  yapf-check:
+  yapf:
     runs-on: ubuntu-latest
+    name: yapf
     steps:
-      - uses: actions/checkout@master
-        with:
-          ref: ${{ github.head_ref }}
-      - name: autoyapf
-        id: autoyapf
-        uses: mritunjaysharma394/autoyapf@v2
-        with:
-          args: --style google --diff farmhand.py
+    - uses: actions/checkout@v1
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+    - name: Install Dependencies
+      run: |
+        pip install yapf
+    - name: yapf
+      run: |
+        yapf --style google --diff farmhand.py
+
