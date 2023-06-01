@@ -1,17 +1,12 @@
-name: Formatting python code
-on:
-  push:
-    paths:
-    - '**.py'
+name: YAPF Formatting Check
+on: [push]
 jobs:
-  autoyapf:
+  formatting-check:
+    name: Formatting Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
-        with:
-          ref: ${{ github.head_ref }}
-      - name: autoyapf
-        id: autoyapf
-        uses: mritunjaysharma394/autoyapf@v2
-        with:
-          args: --style google farmhand.py
+    - uses: actions/checkout@v2
+    - name: run YAPF to test if python code is correctly formatted
+      uses: AlexanderMelde/yapf-action@master
+      with:
+        args: --verbose
