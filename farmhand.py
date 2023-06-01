@@ -61,7 +61,8 @@ def parse_args() -> argparse.Namespace:
         '--push-files',
         type=Path,
         help=
-        'Specify the path to the file or directory to be pushed to the device. Pushes to /data/local/tmp.')
+        'Specify the path to the file or directory to be pushed to the device. Pushes to /data/local/tmp.'
+    )
     parser.add_argument(
         '--arm64',
         action='store_true',
@@ -153,69 +154,6 @@ def get_devices(client: SwaggerClient, request_opts: typing.Dict,
             else:
                 ready_devices.append(device)
     return ready_devices
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def lock_device(client: SwaggerClient, request_opts: typing.Dict,
@@ -430,15 +368,6 @@ if __name__ == '__main__':
             results[stf_device['serial']] = build_unavailable(
                 "failed to get remote url")
             continue
-
-
-
-
-
-
-
-
-
 
         adb_device = adb_connect_device(url, key_signer)
         if adb_device is None:
