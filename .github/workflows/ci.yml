@@ -3,7 +3,7 @@ on: [push]
 jobs:
   mypy:
     runs-on: ubuntu-latest
-    name: Mypy
+    name: mypy
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python 3.8
@@ -12,10 +12,11 @@ jobs:
         python-version: 3.8
     - name: Install Dependencies
       run: |
-        pip install mypy
+        pip install mypy==0.97.0
     - name: mypy
       run: |
         mypy .
+
   yapf:
     runs-on: ubuntu-latest
     name: yapf
@@ -27,7 +28,7 @@ jobs:
         python-version: 3.8
     - name: Install Dependencies
       run: |
-        pip install yapf
+        pip install yapf==0.32.0
     - name: yapf
       run: |
         yapf --style google --diff farmhand.py

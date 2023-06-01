@@ -51,11 +51,10 @@ def parse_args() -> argparse.Namespace:
         '--file',
         type=Path,
         help='Specify the path to the file to be executed on the device.')
-    parser.add_argument(
-        '-c',
-        '--command',
-        type=str,
-        help='Specify the command to be run on the device.')
+    parser.add_argument('-c',
+                        '--command',
+                        type=str,
+                        help='Specify the command to be run on the device.')
     parser.add_argument(
         '-p',
         '--push-files',
@@ -63,11 +62,10 @@ def parse_args() -> argparse.Namespace:
         help=
         'Specify the path to the file or directory to be pushed to the device. Pushes to /data/local/tmp.'
     )
-    parser.add_argument(
-        '--arm64',
-        action='store_true',
-        default=False,
-        help='Run on 64-bit devices only.')
+    parser.add_argument('--arm64',
+                        action='store_true',
+                        default=False,
+                        help='Run on 64-bit devices only.')
     parser.add_argument(
         '--adb-pri-key-file',
         type=Path,
@@ -173,8 +171,8 @@ def lock_device(client: SwaggerClient, request_opts: typing.Dict,
     device_obj = {'serial': serial, 'timeout': TIMEOUT}
     logging.debug("locking device %s", serial)
     try:
-        client.user.addUserDevice(
-            _request_options=request_opts, device=device_obj).response()
+        client.user.addUserDevice(_request_options=request_opts,
+                                  device=device_obj).response()
     except HTTPClientError:
         logging.warning("Failed to lock device")
         return False
@@ -193,8 +191,8 @@ def unlock_device(client: SwaggerClient, request_opts: typing.Dict,
     """
     logging.debug("unlocking device %s", serial)
     try:
-        client.user.deleteUserDeviceBySerial(
-            _request_options=request_opts, serial=serial).response()
+        client.user.deleteUserDeviceBySerial(_request_options=request_opts,
+                                             serial=serial).response()
     except HTTPClientError:
         logging.exception("Failed to unlock device")
 
@@ -223,8 +221,9 @@ def get_remote_url(client: SwaggerClient, request_opts: typing.Dict,
     return resp['remoteConnectUrl']
 
 
-def adb_connect_device(spec_url: str, signer: PythonRSASigner
-                      ) -> typing.Optional[AdbDeviceTcp]:
+def adb_connect_device(
+        spec_url: str,
+        signer: PythonRSASigner) -> typing.Optional[AdbDeviceTcp]:
     """Connects to an ADB device over TCP/IP.
 
     Args:
@@ -237,8 +236,9 @@ def adb_connect_device(spec_url: str, signer: PythonRSASigner
     """
     ip_addr, port = spec_url.split(':')
     try:
-        device = AdbDeviceTcp(
-            ip_addr, int(port), default_transport_timeout_s=60)
+        device = AdbDeviceTcp(ip_addr,
+                              int(port),
+                              default_transport_timeout_s=60)
         device.connect(rsa_keys=[signer], auth_timeout_s=1)
         logging.debug("connected to device %s", url)
     except Exception:
@@ -274,8 +274,8 @@ def exec_file(device: AdbDeviceTcp, bin_path: str) -> typing.Optional[str]:
         logging.exception("failed to execute file")
         return None
 
-    return device.shell(
-        device_dir + binary_file + ECHO_EXIT_CODE, read_timeout_s=60)
+    return device.shell(device_dir + binary_file + ECHO_EXIT_CODE,
+                        read_timeout_s=60)
 
 
 def push_files(device: AdbDeviceTcp, filepath: str) -> bool:
