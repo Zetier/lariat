@@ -27,6 +27,6 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: isort
-      uses: docker://xcgd/isort:latest
+      uses: docker://le91688/dockerized_isort:3.8-5.12.0
       with:
         args: --c farmhand.py
