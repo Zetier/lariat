@@ -21,3 +21,12 @@ jobs:
       with:
         args: --style google --diff farmhand.py
 
+  isort:
+    runs-on: ubuntu-latest
+    name: isort
+    steps:
+    - uses: actions/checkout@v1
+    - name: isort
+      uses: docker://xcgd/isort:latest
+      with:
+        args: --c farmhand.py
