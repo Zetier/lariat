@@ -11,15 +11,15 @@ jobs:
       with:
         args: .
 
-  yapf:
+  black:
     runs-on: ubuntu-latest
     name: black
     steps:
     - uses: actions/checkout@v1
-    - name: yapf
+    - name: black
       uses: docker://pyfound/black:23.3.0
       with:
-        args: black farmhand.py
+        args: black --check farmhand.py
 
   isort:
     runs-on: ubuntu-latest
