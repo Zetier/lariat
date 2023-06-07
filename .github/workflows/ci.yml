@@ -13,13 +13,13 @@ jobs:
 
   yapf:
     runs-on: ubuntu-latest
-    name: yapf
+    name: black
     steps:
     - uses: actions/checkout@v1
     - name: yapf
-      uses: docker://le91688/dockerized_yapf:3.8-0.33.0
+      uses: docker://pyfound/black:23.3.0
       with:
-        args: --style google --diff farmhand.py
+        args: black farmhand.py
 
   isort:
     runs-on: ubuntu-latest
