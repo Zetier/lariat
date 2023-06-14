@@ -1,0 +1,2 @@
+[console_scripts]
+farmhand = farmhand.farmhand:main

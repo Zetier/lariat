@@ -1,3 +1,0 @@
-bravado
-pure-python-adb
-adb_shell

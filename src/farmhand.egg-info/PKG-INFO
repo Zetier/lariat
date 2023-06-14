@@ -1,27 +1,38 @@
+Metadata-Version: 2.1
+Name: farmhand
+Version: 0.0.1
+Summary: Python utility for interfacing with the Device Farmer API
+Author: Zetier
+Project-URL: Homepage, https://github.com/Zetier/farmhand
+Project-URL: Bug Tracker, https://github.com/Zetier/farmhand/issues
+Keywords: farmhand,devicefarmer,stf,automation
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: GNU General Public License v2 (GPLv2)
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3.8
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
 # Farmhand
 
-Farmhand is a powerful command-line tool designed to streamline the execution of
-commands and running of executables on remote Android devices. It achieves this
-by leveraging DeviceFarmer's API and the Android Debug Bridge (ADB). With
-Farmhand, the cumbersome process of manually connecting to devices, pushing
-files, running commands, and retrieving results is simplified and made more
-efficient. It is an ideal solution for automating tasks in continuous
-integration (CI) pipelines.
+Farmhand is a command-line tool that allows you to execute commands and run
+files on remote devices using DeviceFarmer's API and ADB. It simplifies the
+process of connecting to devices, pushing files, running commands, and
+retrieving results.
 
 ## Prerequisites
 
 - Python 3.8 or higher
 - ADB installed and added to the system's PATH
-- DeviceFarmer [Access
-  Token](https://github.com/DeviceFarmer/stf/blob/master/doc/API.md#authentication)
+- DeviceFarmer API token
 - JSON configuration file containing the Swagger spec URL and DeviceFarmer API
   token
 
 ## Installation
 
-NOTE: Farmhand is developed on and regularly tested with Ubuntu 18.04 with
-Python 3.8. Other distributions and versions may work, but are currently
-untested.
+NOTE: Farmhand is developed on and regularly tested with Ubuntu 18.04 with Python 3.8.
+Other distributions and versions may work, but are currently untested.
 
 1. Clone the repository
 
@@ -30,10 +41,10 @@ untested.
 ```sh
 sudo apt-get update
 sudo apt-get install python3-venv python3.8-venv -y
-python3.8 -m venv venv
-source venv/bin/activate
-(venv) pip install --upgrade pip
-(venv) pip install .
+python3.8 -m venv bg_venv
+source bg_venv/bin/activate
+(bg_venv) pip install --upgrade pip
+(bg_venv) pip install .
 ```
 
 3. Create a [configuration file](#configuration-file)
@@ -44,19 +55,19 @@ Farmhand utilizes a JSON configuration file. The default location for this
 config file is in the `.farmhand` directory within the user's home directory
 (~/.farmhand/config.json). The configuration file is used to specify the
 following:
-   - `device_farmer_url`: The URL of the DeviceFarmer instance to connect to.
+   - device_farmer_url: The URL of the DeviceFarmer instance.
      * NOTE: Farmhand will append the standard API JSON spec to the base url. If
        using a custom path for your spec file, specify a full url ending in
        .json or .yaml.
-   - `access_token`: Your DeviceFarmer access token.
+   - access_token: Your DeviceFarmer access token.
      * This can be obtained by logging into your DeviceFarmer UI, and going to
        Settings->Keys->Access Tokens
-   - `adb_private_key_path`: (Optional) Path to a non-default adb private key.
+   - adb_private_key_path: (Optional) Path to non default adb private key.
      Defaults to ~/.android/adbkey if not specified
 
 ```json
 {
-   "access_token": "ef02da4fb3884395af4cf011061a2318ca5e9a04abd04de59c5c99afcce0b7fz",
+   "access_token": "12345",
    "device_farmer_url": "https://my.device-farmer-instance.com/",
    "adb_private_key_path": "/custom/path/adb.key"
 }
@@ -161,9 +172,9 @@ python farmhand.py --push-files path/to/files
 
 ### Results
 
-Farmhand returns results for each device that meets the filtering criteria.
+Farmhand returns results for each device that an action was performed on.
 
-The following is sample output for an `echo` command:
+The following is an example of sample output for the command
 
 ```sh
 python farmhand.py --command "echo hello" --filter abi=arm64-v8a
@@ -179,17 +190,17 @@ python farmhand.py --command "echo hello" --filter abi=arm64-v8a
     "available": true
 },
 "C678910": {
+    "available": false,
     "output": "Failed to lock device",
     "exitcode": null
-    "available": false,
 }
 ```
 
 Each result contains the following fields:
 
 * `available` -  Whether or not the device was available for this action.
-* `output` - The ADB shell output of the command _or_ details about action
-  performed
+* `output` - The resultant ADB shell output of the command _or_ details about
+  action performed
 * `exitcode` - return code of command or action. Null if no action performed.
 
 Please note: An unavailable device can happen if a device is locked, or if it is
@@ -197,12 +208,12 @@ not present on DeviceFarmer at the time the operations were performed.
 
 ## Docker Image
 
-For convenience, an official Farmhand Docker image is available.
+For convenience, an official Farmhand Docker image is provided.
 
 To use the docker image, simply run
 
 ```sh
-docker run --rm -v ~/.android:/root/.android:ro -v ~/.farmhand:/root/.farmhand:ro ghcr.io/zetier/farmhand:latest -c 'echo hello'
+docker run --rm -v ~/.android:/root/.android -v ~/.farmhand:/root/.farmhand zetier/farmhand:latest -c 'echo hello'
 ```
 
 This command will mount your .android and .farmhand dirs, with your ADB keys and
@@ -212,49 +223,40 @@ command.
 
 ## CI Integration
 
-Farmhand was designed for simple integration into CI pipelines. Below is an
-example of a GitLab job that tests a binary built in the pipeline on a Device
-Farmer range:
+Farmhand was designed for simple integration into your CI pipelines. Below is
+an example of a Gitlab job that tests a binary on your Device Farmer range:
 
 ```yml
 .farmhand-test:
-  image:
-    name: ghcr.io/zetier/farmhand:latest
+  image: zetier/farmhand:latest
     entrypoint: [""]
   stage: test
   before_script:
-    # Copy keys and configs from private CI variables
+    # Copy keys and configs from CI variables
     - mkdir -p ~/.android
-    - echo "$CI_ADB_PUB_KEY" > ~/.android/adbkey.pub
-    - echo "$CI_ADB_PRI_KEY" > ~/.android/adbkey
-    - echo "$CI_FARMHAND_CONFIG" -> ~/.farmhand/config.json
+    - echo "$ADB_PUB_CI_VAR" > ~/.android/adbkey.pub
+    - echo "$ADB_PRI_CI_VAR" > ~/.android/adbkey
+    - echo "$FARMHAND_CONFIG_CI_VAR" -> ~/farmhand_config.json
   script:
     - python3 farmhand.py --file $BINARY > test_results.json
   artifacts:
     paths:
       - test_results.json
 
-# Assumes a `build-android-binary` job that produces `android_binary`
-# as an artifact.
-android-range-test:
+android_test:
   extends: .farmhand-test
   variables:
-    BINARY: android_binary
-  needs:
-    - build-android-binary
-
+    BINARY: my_android_binary
 ```
 
 ## Notes
 
-- Farmhand will lock devices before performing any operations to ensure
-  exclusive access. After the operations have been completed, the devices will
-  be unlocked.
-
+- Farmhand will lock the devices before performing any operations to ensure
+  exclusive access. After the operation is completed, the devices will be
+  unlocked.
 - Make sure to provide the correct path to the ADB private key file via
   `farmhand_config.json` if it is different from the default location
   (~/.android/adbkey)
-
 - By default, Farmhand will enumerate ~every~ device on the DeviceFarmer range,
   including ones not `present` or `ready`. You can modify this as needed by
   specifying `--filter ready=true present=true` if needed.
