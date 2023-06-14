@@ -6,9 +6,9 @@ WORKDIR /app
 
 # Copy the rest of the application's source code into the container
 COPY README.md .
-COPY setup.py .
-COPY farmhand .
+COPY pyproject.toml .
+COPY src .
 # Install the Python dependencies
 RUN pip install --no-cache-dir .
 
-ENTRYPOINT ["python", "farmhand.py"]
+ENTRYPOINT ["farmhand"]

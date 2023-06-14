@@ -554,11 +554,9 @@ def main() -> int:
             api_url=device_farmer_url, api_token=access_token
         )
 
-    except Exception as adb_exception:
+    except Exception:
         logging.error(
-            "Failed to connect to device farmer instance at %s: %s",
-            device_farmer_url,
-            adb_exception,
+            "Failed to connect to device farmer instance at %s", device_farmer_url
         )
         return 1
 
