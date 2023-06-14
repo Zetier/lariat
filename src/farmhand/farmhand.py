@@ -23,15 +23,17 @@ logging.basicConfig(level=logging.INFO)
 # Ignore cert warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-EXIT_CODE = 'exit_code:'
+EXIT_CODE_TOKEN = "exit_code:"
 DEVICE_PUSH_DIR = "/data/local/tmp/"
-PERM_CMD = "chmod 755 %s"
-ECHO_EXIT_CODE = ' ; echo ' + EXIT_CODE + '$?'
+CHMOD_755 = "chmod 755 %s"
+# Workaround for getting exit code from adb_shell
+# https://github.com/JeffLIrion/adb_shell/issues/217
+ECHO_EXIT_CODE = " ; echo " + EXIT_CODE_TOKEN + "$?"
 # Locked device will be automatically removed from the user control
 # if it is kept idle for this period (in milliseconds);
 LOCK_TIMEOUT_MS = 5000000
-DEFAULT_ADB_PRI_KEY = Path.home() / '.android/adbkey'
-DEFAULT_CFG_FILE = Path.home() / '.farmhand_config.json'
+DEFAULT_ADB_PRI_KEY = Path.home() / ".android/adbkey"
+DEFAULT_CFG_FILE = Path.home() / ".farmhand/config.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,86 +42,89 @@ def parse_args() -> argparse.Namespace:
     Returns:
         argparse.Namespace: An object containing the parsed arguments.
     """
-    parser = argparse.ArgumentParser(description='DeviceFarmer automation tool')
+    parser = argparse.ArgumentParser(description="DeviceFarmer automation tool")
 
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument(
-        '-g',
-        '--get-devices',
-        action='store_true',
-        help=
-        'Enumerate devices on DeviceFarmer instance. Does not execute any commands on devices. Prints JSON results to stdout.'
+        "-g",
+        "--get-devices",
+        action="store_true",
+        help="Enumerate devices on DeviceFarmer instance. Does not execute any commands on devices. Prints JSON results to stdout.",
     )
 
     group.add_argument(
-        '-e',
-        '--exec-file',
+        "-e",
+        "--exec-file",
         type=Path,
-        help=f'Push a file and execute it. Pushes to {DEVICE_PUSH_DIR}.')
+        help=f"Push a file and execute it. Pushes to {DEVICE_PUSH_DIR}.",
+    )
 
-    group.add_argument('-c', '--command', type=str, help='Run a command.')
+    group.add_argument("-c", "--command", type=str, help="Run a command.")
 
     parser.add_argument(
-        '--config',
+        "--config",
         type=Path,
         default=Path(DEFAULT_CFG_FILE),
-        help=
-        f'Override the default path to the configuration file. Default: {DEFAULT_CFG_FILE}'
+        help="Override the default path to the configuration file. Default:"
+        + str(DEFAULT_CFG_FILE),
     )
     parser.add_argument(
-        '-s',
-        '--select',
+        "-s",
+        "--select",
         type=str,
         default=None,
-        nargs='+',
-        help=
-        'Select the fields to be returned by --get-devices (-g). If not specified, all fields are returned.'
+        nargs="+",
+        help="Select the fields to be returned by --get-devices (-g). If not specified, all fields are returned.",
     )
 
     parser.add_argument(
-        '-f',
-        '--filter-devices',
+        "-f",
+        "--filter",
         type=str,
         default=None,
-        nargs='+',
-        help=
-        'Filter devices via a list of key-value pairs (e.g., key1=val1 key2=val2). Non boolean values are regex matched'
+        nargs="+",
+        help="Filter devices via a list of key-value pairs (e.g., sdk=27 manufacturer=SAMSUNG). Non boolean values are regex matched",
     )
 
     parser.add_argument(
-        '-p',
-        '--push-files',
+        "-p",
+        "--push-files",
         type=Path,
-        help=
-        f'Specify the path to the file or directory to be pushed to the device. Pushes to {DEVICE_PUSH_DIR}.'
+        help="Specify the path to the file or directory to be pushed to the device. Pushes to "
+        + str(DEVICE_PUSH_DIR)
+        + ".",
     )
 
     parsed_args = parser.parse_args()
 
-    if not parsed_args.get_devices and not parsed_args.push_files and not parsed_args.exec_file and not parsed_args.command:
+    if not (
+        parsed_args.get_devices
+        or parsed_args.push_files
+        or parsed_args.exec_file
+        or parsed_args.command
+    ):
         parser.error("Must specify a command")
 
     if parsed_args.select and not parsed_args.get_devices:
-        parser.error(
-            'The -s/--select option can only be used with -g/--get-devices.')
+        parser.error("The -s/--select option can only be used with -g/--get-devices.")
 
     if parsed_args.push_files:
-        if not os.path.exists(parsed_args.push_files.expanduser()):
+        if not parsed_args.push_files.expanduser().exists():
             parser.error(
-                f"--push-files argument '{parsed_args.push_files}' does not exist"
+                "--push-files argument does not exist: " + str(parsed_args.push_files)
             )
 
     if parsed_args.exec_file:
-        if not os.path.exists(parsed_args.exec_file.expanduser()):
+        if not parsed_args.exec_file.expanduser().exists():
             parser.error(
-                f"--exec-file argument '{parsed_args.exec_file}' does not exist"
+                "--exec-file argument does not exist: " + str(parsed_args.exec_file)
             )
 
     return parsed_args
 
 
 def load_config(
-        config_file: Path
+    config_file: Path,
 ) -> typing.Optional[typing.Dict[typing.Any, typing.Any]]:
     """Load a JSON configuration file.
 
@@ -132,24 +137,25 @@ def load_config(
 
     cfg = None
     try:
-        with open(config_file, 'r', encoding='utf-8') as file:
+        with open(config_file, "r", encoding="utf-8") as file:
             cfg = json.load(file)
     except FileNotFoundError:
         logging.error(
             "Config file '%s' not found. Use --config to specify if using a non-default config file",
-            config_file)
+            config_file,
+        )
     except json.JSONDecodeError:
-        logging.exception("Invalid JSON format in config file '%s'",
-                          config_file)
+        logging.exception("Invalid JSON format in config file '%s'", config_file)
     return cfg
 
 
-def api_connect(api_url: str,
-                api_token: str) -> typing.Tuple[SwaggerClient, typing.Dict]:
+def api_connect(
+    api_url: str, api_token: str
+) -> typing.Tuple[SwaggerClient, typing.Dict]:
     """Connect to a DeviceFarmer instance using the provided Swagger spec URL and API token.
 
     Args:
-        spec_url (str): The URL of the Swagger spec for the DeviceFarmer instance.
+        api_url (str): The URL of the Swagger spec for the DeviceFarmer instance.
         api_token (str): The API token for authentication.
 
     Returns:
@@ -157,25 +163,28 @@ def api_connect(api_url: str,
 
     """
 
-    ext = os.path.splitext(api_url)
+    _, ext = os.path.splitext(api_url)
 
-    if ext[1] == ".json" or ext[1] == ".yaml":
+    # The user can provide either the base URL of their Device Farmer instance (e.g myorg.devicefarmer.com)
+    # or a full path to their Swagger 2.0 spec file (e.g myorg.devicefarmer.com/custom/path/swagger.json)
+    # If the base URL is provided, the standard path for the Swagger spec file is appended
+    if ext == ".json" or ext == ".yaml":
         spec_url = api_url
     else:
         spec_url = api_url + "/api/v1/swagger.json"
 
     logging.debug("Connecting to DeviceFarmer instance: %s", api_url)
     http_client = RequestsClient(ssl_verify=False)
-    headers = {'Authorization': 'Bearer ' + api_token}
+    headers = {"Authorization": "Bearer " + api_token}
     client = SwaggerClient.from_url(spec_url, http_client)
-    header = {'headers': headers}
+    header = {"headers": headers}
     return client, header
 
 
 def get_devices(
     client: SwaggerClient,
     request_opts: typing.Dict,
-    fields=typing.Optional[typing.List[str]]
+    fields=typing.Optional[typing.List[str]],
 ) -> typing.List[typing.Dict[typing.Any, typing.Any]]:
     """Retrieve a list of devices from the DeviceFarmer API.
 
@@ -192,25 +201,29 @@ def get_devices(
 
     if fields is not None:
         try:
-            fields_str = ','.join(fields)
+            fields_str = ",".join(fields)
         except TypeError:
             logging.exception("Failed to convert list of fields to string")
             return []
 
     try:
-        devices = client.devices.getDevices(_request_options=request_opts,
-                                            fields=fields_str).response().result
+        devices = (
+            client.devices.getDevices(_request_options=request_opts, fields=fields_str)
+            .response()
+            .result
+        )
     except HTTPClientError:
         logging.exception("Failed to get device list")
         return []
 
-    device_list = devices.get('devices', [])
+    device_list = devices.get("devices", [])
 
     return device_list
 
 
-def lock_device(client: SwaggerClient, request_opts: typing.Dict, serial: str,
-                timeout: int) -> bool:
+def lock_device(
+    client: SwaggerClient, request_opts: typing.Dict, serial: str, timeout: int
+) -> bool:
     """Locks a device by adding it to the user's control.
 
     Args:
@@ -222,18 +235,20 @@ def lock_device(client: SwaggerClient, request_opts: typing.Dict, serial: str,
         bool: True if the device is successfully locked, False otherwise.
 
     """
-    device_obj = {'serial': serial, 'timeout': timeout}
+    device_obj = {"serial": serial, "timeout": timeout}
     try:
-        client.user.addUserDevice(_request_options=request_opts,
-                                  device=device_obj).response()
+        client.user.addUserDevice(
+            _request_options=request_opts, device=device_obj
+        ).response()
     except HTTPClientError:
         logging.warning("Failed to lock device")
         return False
     return True
 
 
-def unlock_device(client: SwaggerClient, request_opts: typing.Dict,
-                  serial: str) -> None:
+def unlock_device(
+    client: SwaggerClient, request_opts: typing.Dict, serial: str
+) -> None:
     """Unlocks a previously locked device.
 
     Args:
@@ -244,14 +259,16 @@ def unlock_device(client: SwaggerClient, request_opts: typing.Dict,
     """
     logging.debug("Unlocking device %s", serial)
     try:
-        client.user.deleteUserDeviceBySerial(_request_options=request_opts,
-                                             serial=serial).response()
+        client.user.deleteUserDeviceBySerial(
+            _request_options=request_opts, serial=serial
+        ).response()
     except HTTPClientError:
         logging.exception("Failed to unlock device")
 
 
-def get_remote_url(client: SwaggerClient, request_opts: typing.Dict,
-                   serial: str) -> typing.Optional[str]:
+def get_remote_url(
+    client: SwaggerClient, request_opts: typing.Dict, serial: str
+) -> typing.Optional[str]:
     """Retrieves the remote connection URL for a device.
 
     Args:
@@ -264,19 +281,24 @@ def get_remote_url(client: SwaggerClient, request_opts: typing.Dict,
 
     """
     try:
-        resp = client.user.remoteConnectUserDeviceBySerial(
-            _request_options=request_opts, serial=serial).response().result
+        resp = (
+            client.user.remoteConnectUserDeviceBySerial(
+                _request_options=request_opts, serial=serial
+            )
+            .response()
+            .result
+        )
     except HTTPClientError as client_err:
         logging.warning("Device not available: %s", client_err)
         return None
 
-    logging.debug("Remote connect URL %s", resp['remoteConnectUrl'])
-    return resp['remoteConnectUrl']
+    logging.debug("Remote connect URL %s", resp["remoteConnectUrl"])
+    return resp["remoteConnectUrl"]
 
 
 def adb_connect_device(
-        device_url: str,
-        signer: PythonRSASigner) -> typing.Optional[AdbDeviceTcp]:
+    device_url: str, signer: PythonRSASigner
+) -> typing.Optional[AdbDeviceTcp]:
     """Connects to an ADB device over TCP/IP.
 
     Args:
@@ -288,7 +310,7 @@ def adb_connect_device(
 
     """
     try:
-        ip_addr, port_str = device_url.split(':')
+        ip_addr, port_str = device_url.split(":")
     except ValueError:
         logging.exception("invalid device url: %r", device_url)
         return None
@@ -311,10 +333,10 @@ def adb_connect_device(
         device = AdbDeviceTcp(ip_addr, port, default_transport_timeout_s=60)
         device.connect(rsa_keys=[signer], auth_timeout_s=1)
     except Exception:
-        logging.exception("Failed to connect to adb device %s", url)
+        logging.exception("Failed to connect to adb device %s", device_url)
         return None
 
-    logging.debug("Connected to device %s", url)
+    logging.debug("Connected to device %s", device_url)
 
     return device
 
@@ -336,21 +358,21 @@ def push_and_exec_file(device: AdbDeviceTcp, bin_path: Path) -> str:
         device.push(bin_path.expanduser(), DEVICE_PUSH_DIR + binary_file)
     except Exception:
         logging.exception("Failed to push file")
-        return ''
+        return ""
 
     try:
-        device.shell(PERM_CMD % (DEVICE_PUSH_DIR + binary_file))
+        device.shell(CHMOD_755 % (DEVICE_PUSH_DIR + binary_file))
     except Exception:
         logging.exception("Failed to set file permissions")
-        return ''
+        return ""
 
     try:
-        cmd_result = device.shell(DEVICE_PUSH_DIR + binary_file +
-                                  ECHO_EXIT_CODE,
-                                  read_timeout_s=60)
+        cmd_result = device.shell(
+            DEVICE_PUSH_DIR + binary_file + ECHO_EXIT_CODE, read_timeout_s=60
+        )
     except Exception:
         logging.exception("Failed to exec file")
-        return ''
+        return ""
 
     return str(cmd_result)
 
@@ -375,11 +397,11 @@ def push_files(device: AdbDeviceTcp, filepath: Path) -> bool:
             file_list.append(os.path.join(push_abs_path, file))
     for file in file_list:
         try:
-            device.push(local_path=file,
-                        device_path=DEVICE_PUSH_DIR + os.path.basename(file))
+            device.push(
+                local_path=file, device_path=DEVICE_PUSH_DIR + os.path.basename(file)
+            )
         except Exception:
-            logging.exception("Failed to push files at path %s to device",
-                              filepath)
+            logging.exception("Failed to push files at path %s to device", filepath)
             return False
 
     return True
@@ -396,9 +418,9 @@ def build_unavailable(reason: str) -> typing.Dict[str, typing.Any]:
 
     """
     result_dict = {}  # type: typing.Dict[str, typing.Any]
-    result_dict['available'] = False
-    result_dict['output'] = reason
-    result_dict['exitcode'] = None
+    result_dict["available"] = False
+    result_dict["output"] = reason
+    result_dict["exitcode"] = None
     return result_dict
 
 
@@ -414,7 +436,7 @@ def nested_get(dct: dict, key: str, default: typing.Any = None) -> typing.Any:
         value associated with key (of any type)
 
     """
-    key_split = key.split('.', 1)
+    key_split = key.split(".", 1)
     val = dct.get(key_split[0], default)
     if isinstance(val, dict) and len(key_split) > 1:
         val = nested_get(val, key_split[1], default)
@@ -423,7 +445,7 @@ def nested_get(dct: dict, key: str, default: typing.Any = None) -> typing.Any:
 
 def filter_devices(
     device_list: typing.List[typing.Dict[typing.Any, typing.Any]],
-    criteria: typing.Dict[str, typing.Any]
+    criteria: typing.Dict[str, typing.Any],
 ) -> typing.List[typing.Dict[str, typing.Any]]:
     """Filter a list of devices based on specified criteria.
 
@@ -442,9 +464,9 @@ def filter_devices(
     filtered_list = []
     # Convert bool strings to bool
     for key in criteria:
-        if criteria[key].lower() == 'true':
+        if criteria[key].lower() == "true":
             criteria[key] = True  # type: ignore
-        elif criteria[key].lower() == 'false':
+        elif criteria[key].lower() == "false":
             criteria[key] = False  # type: ignore
 
     # Iterate all devices, and for each criteria, compare the value of the device key against the value of the criteria key
@@ -452,10 +474,13 @@ def filter_devices(
     for device in device_list:
         try:
             if all(
-                ((isinstance(nested_get(device, key), (int, str))) and
-                 re.match(str(criteria[key]), str(nested_get(device, key)))) or
-                    criteria[key] == nested_get(device, key)
-                    for key in criteria):
+                (
+                    (isinstance(nested_get(device, key), (int, str)))
+                    and re.match(str(criteria[key]), str(nested_get(device, key)))
+                )
+                or criteria[key] == nested_get(device, key)
+                for key in criteria
+            ):
                 filtered_list.append(device)
         except re.error as re_error:
             logging.error("Error in regular expression: %s", re_error.msg)
@@ -491,55 +516,58 @@ def result_to_dict(result_string: str) -> typing.Dict[str, typing.Any]:
     res = io.StringIO(result_string)
 
     for line in res:
-        if EXIT_CODE in line:
-            exitcode = int(line.split(':')[1])
+        if EXIT_CODE_TOKEN in line:
+            exitcode = int(line.split(":")[1])
 
     result_output = {
-        'output': result_string.split(EXIT_CODE, 1)[0].strip(),
-        'exitcode': exitcode,
-        'available': True
+        "output": result_string.split(EXIT_CODE_TOKEN, 1)[0].strip(),
+        "exitcode": exitcode,
+        "available": True,
     }
 
     return result_output
 
 
-if __name__ == '__main__':
+def main() -> int:
+    """Main entrypoint"""
 
     args = parse_args()
 
     config = load_config(config_file=args.config)
     if not config:
-        sys.exit(1)
+        return 1
 
-    device_farmer_url = config.get('device_farmer_url')
+    device_farmer_url = config.get("device_farmer_url")
     if not device_farmer_url:
         logging.error("Missing required config value 'device_farmer_url'")
-        sys.exit(1)
+        return 1
 
-    access_token = config.get('access_token')
+    access_token = config.get("access_token")
     if not access_token:
         logging.error("Missing required config value 'access_token'")
-        sys.exit(1)
+        return 1
 
-    adb_private_key_path = config.get('adb_private_key_path',
-                                      DEFAULT_ADB_PRI_KEY)
+    adb_private_key_path = config.get("adb_private_key_path", DEFAULT_ADB_PRI_KEY)
 
     try:
-        swagger_client, request_options = api_connect(api_url=device_farmer_url,
-                                                      api_token=access_token)
+        swagger_client, request_options = api_connect(
+            api_url=device_farmer_url, api_token=access_token
+        )
 
-    except Exception as e:
-        logging.error("Failed to connect to device farmer instance at %s: %s",
-                      device_farmer_url, e)
-        sys.exit(1)
+    except Exception as adb_exception:
+        logging.error(
+            "Failed to connect to device farmer instance at %s: %s",
+            device_farmer_url,
+            adb_exception,
+        )
+        return 1
 
     filter_criteria = {}
     select_fields = set(args.select) if args.select else None
-    if args.filter_devices:
+    if args.filter:
         try:
             # Convert list of strings to dict
-            filter_criteria = dict(
-                item.split("=") for item in args.filter_devices)
+            filter_criteria = dict(item.split("=") for item in args.filter)
         except ValueError:
             logging.exception("Invalid filter provided")
             sys.exit(1)
@@ -550,7 +578,7 @@ if __name__ == '__main__':
     # Get all "available" devices on range
     stf_devices = get_devices(swagger_client, request_options, select_fields)
     # Filter devices if required
-    if args.filter_devices:
+    if args.filter:
         stf_devices = filter_devices(stf_devices, filter_criteria)
 
     ## If get-devices, simply dump device info to stdout
@@ -559,12 +587,13 @@ if __name__ == '__main__':
             print(json.dumps(stf_devices, indent=4))
         except (TypeError, ValueError, OverflowError):
             logging.exception("Failed to serialize JSON")
-            sys.exit(1)
-        sys.exit(0)
+            return 1
+        return 0
 
     try:
         key_signer = PythonRSASigner.FromRSAKeyPath(
-            rsa_key_path=(os.path.abspath(adb_private_key_path)))
+            rsa_key_path=(os.path.abspath(adb_private_key_path))
+        )
         # Use the key_signer object for authentication
     except (IOError, ValueError):
         logging.exception("Error reading RSA private key file")
@@ -573,65 +602,73 @@ if __name__ == '__main__':
     results = {}
 
     for stf_device in stf_devices:
-        device_serial = stf_device.get('serial')
+        device_serial = stf_device.get("serial")
         if device_serial is None:
             logging.error("Device JSON missing required field 'serial'")
             sys.exit(1)
-        if not lock_device(swagger_client, request_options, device_serial,
-                           LOCK_TIMEOUT_MS):
+        if not lock_device(
+            swagger_client, request_options, device_serial, LOCK_TIMEOUT_MS
+        ):
             results[device_serial] = build_unavailable("Failed to lock device")
             continue
 
         url = get_remote_url(swagger_client, request_options, device_serial)
         if url is None:
             unlock_device(swagger_client, request_options, device_serial)
-            results[device_serial] = build_unavailable(
-                "Failed to get remote url")
+            results[device_serial] = build_unavailable("Failed to get remote url")
             continue
 
         adb_device = adb_connect_device(url, key_signer)
         if adb_device is None:
             unlock_device(swagger_client, request_options, device_serial)
-            results[device_serial] = build_unavailable(
-                "Failed to connect via ADB")
+            results[device_serial] = build_unavailable("Failed to connect via ADB")
             continue
 
         if args.push_files:
-            logging.info("Pushing [%s] to device [%s %s %s]", args.push_files,
-                         stf_device.get('manufacturer'),
-                         stf_device.get('model'), device_serial)
+            logging.info(
+                "Pushing [%s] to device [%s %s %s]",
+                args.push_files,
+                stf_device.get("manufacturer"),
+                stf_device.get("model"),
+                device_serial,
+            )
             if not push_files(adb_device, args.push_files):
                 unlock_device(swagger_client, request_options, device_serial)
-                results[device_serial] = build_unavailable(
-                    "ADB failure pushing files")
+                results[device_serial] = build_unavailable("ADB failure pushing files")
                 continue
             results[device_serial] = {
-                'output': 'successfully pushed to device',
-                'exitcode': 0,
-                'available': True
+                "output": "successfully pushed to device",
+                "exitcode": 0,
+                "available": True,
             }
 
         if args.command:
-            logging.info("Running command [%s] on device [%s %s %s]",
-                         args.command, stf_device.get('manufacturer'),
-                         stf_device.get('model'), device_serial)
+            logging.info(
+                "Running command [%s] on device [%s %s %s]",
+                args.command,
+                stf_device.get("manufacturer"),
+                stf_device.get("model"),
+                device_serial,
+            )
             try:
                 result = adb_device.shell(command=args.command + ECHO_EXIT_CODE)
                 results[device_serial] = result_to_dict(str(result))
-            except Exception as e:
-                logging.error("Failed to run shell command %s: %s",
-                              args.command, e)
+            except Exception as adb_exception:
+                logging.warning(
+                    "Failed to run shell command %s: %s", args.command, adb_exception
+                )
                 results[device_serial] = build_unavailable(
-                    "ADB failure running command")
+                    "ADB failure running command"
+                )
                 continue
 
         elif args.exec_file:
-            logging.info("Executing binary [%s] on device [%s]", args.exec_file,
-                         device_serial)
+            logging.info(
+                "Executing binary [%s] on device [%s]", args.exec_file, device_serial
+            )
             result = push_and_exec_file(adb_device, args.exec_file)
             if not result:
-                results[device_serial] = build_unavailable(
-                    "ADB failure executing file")
+                results[device_serial] = build_unavailable("ADB failure executing file")
             else:
                 results[device_serial] = result_to_dict(result)
 
@@ -639,14 +676,18 @@ if __name__ == '__main__':
 
     if not results:
         logging.error("No results for job")
-        sys.exit(1)
+        return 1
 
     try:
         results_json = json.dumps(results, indent=4)
     except (TypeError, ValueError, OverflowError):
         logging.exception("Failed to serialize JSON")
-        sys.exit(1)
+        return 1
 
     print(results_json)
 
-    sys.exit(0)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

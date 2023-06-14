@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "farmhand"
+version = "0.1.0"
+authors = [{ name = "Zetier" }]
+description = "Python utility for interfacing with the Device Farmer API"
+readme = "README.md"
+dependencies = ['bravado==11.0.*', 'adb-shell==0.4.*', 'types-urllib3==1.26.*']
+requires-python = ">=3.8"
+
+classifiers = [
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
+    'Natural Language :: English',
+    'Programming Language :: Python :: 3.8',
+]
+
+keywords = [
+    'farmhand',
+    'devicefarmer',
+    'stf',
+    'automation',
+    'android',
+    'testing',
+    'openstf',
+]
+
+[project.urls]
+"Homepage" = "https://github.com/Zetier/farmhand"
+"Bug Tracker" = "https://github.com/Zetier/farmhand/issues"
+
+[project.scripts]
+farmhand = "farmhand.farmhand:main"
