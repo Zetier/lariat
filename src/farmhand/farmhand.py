@@ -720,6 +720,8 @@ def process_device(
                         device_serial,
                     )
                     device_result = process_exec_file(adb_device, args.exec_file)
+            else:
+                device_result = build_unavailable("Failed to connect via ADB")
         except Exception:
             logging.exception("Failed to process device")
         finally:
