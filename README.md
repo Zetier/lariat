@@ -1,9 +1,9 @@
-# Farmhand
+# Lariat
 
-Farmhand is a powerful command-line tool designed to streamline the execution of
+Lariat is a powerful command-line tool designed to streamline the execution of
 commands and running of executables on remote Android devices. It achieves this
 by leveraging [DeviceFarmer](https://github.com/DeviceFarmer/stf)'s API and the
-Android Debug Bridge (ADB). With Farmhand, the cumbersome process of manually
+Android Debug Bridge (ADB). With Lariat, the cumbersome process of manually
 connecting to devices, pushing files, running commands, and retrieving results
 is simplified and made more efficient. It is an ideal solution for automating
 tasks in continuous integration (CI) pipelines.
@@ -19,23 +19,23 @@ tasks in continuous integration (CI) pipelines.
 
 ## Installation
 
-Farmhand is available on PyPI:
+Lariat is available on PyPI:
 
 ```sh
-python -m pip install farmhand-util
+python -m pip install lariat
 ```
 
-Farmhand officially supports Python 3.8+.
+Lariat officially supports Python 3.8+.
 
 ## Configuration File
 
-Farmhand utilizes a JSON configuration file. The default location for this
-config file is in the `.farmhand` directory within the user's home directory
-(`~/.farmhand/config.json`). The configuration file is used to specify the
+Lariat utilizes a JSON configuration file. The default location for this
+config file is in the `.lariat` directory within the user's home directory
+(`~/.lariat/config.json`). The configuration file is used to specify the
 following:
 
 - `device_farmer_url`: The URL of the DeviceFarmer instance to connect to.
-  - NOTE: Farmhand will append the standard API JSON spec to the base url. If
+  - NOTE: Lariat will append the standard API JSON spec to the base url. If
     using a custom path for your spec file, specify a full url ending in
     `.json` or `.yaml`.
 
@@ -57,7 +57,7 @@ following:
 ## Usage
 
 ```sh
-usage: farmhand [-h] [-g | -e EXEC_FILE | -c COMMAND] [--config CONFIG] [-s SELECT [SELECT ...]] [-f FILTER [FILTER ...]]
+usage: lariat [-h] [-g | -e EXEC_FILE | -c COMMAND] [--config CONFIG] [-s SELECT [SELECT ...]] [-f FILTER [FILTER ...]]
                 [-p PUSH_FILES]
 
 DeviceFarmer automation tool
@@ -70,7 +70,7 @@ optional arguments:
                         Push a file and execute it. Pushes to /data/local/tmp/.
   -c COMMAND, --command COMMAND
                         Run a command.
-  --config CONFIG       Override the default path to the configuration file. Default:/home/larry.espenshade/.farmhand/config.json
+  --config CONFIG       Override the default path to the configuration file. Default:/home/larry.espenshade/.lariat/config.json
   -s SELECT [SELECT ...], --select SELECT [SELECT ...]
                         Select the fields to be returned by --get-devices (-g). If not specified, all fields are returned.
   -f FILTER [FILTER ...], --filter FILTER [FILTER ...]
@@ -111,54 +111,54 @@ include any field names specified in the filter in the resulting JSON.
 - Enumerate all devices on a DeviceFarmer instance:
 
 ```sh
-farmhand --get-devices
+lariat --get-devices
 ```
 
 - Limit the fields returned by `--get-devices`:
 
 ```sh
-farmhand --get-devices --select serial model status
+lariat --get-devices --select serial model status
 ```
 
 - Filter devices based on specific fields and values (e.g. all Samsung devices
   with SDK level 25-27):
 
 ```sh
-farmhand --get-devices --filter manufacturer=SAMSUNG sdk=2[5-7]
+lariat --get-devices --filter manufacturer=SAMSUNG sdk=2[5-7]
 ```
 
 - Filter devices based on JSON sub-key using dot notation:
 
 ```sh
-farmhand --get-devices --filter provider.name=my.devicefarmer.com
+lariat --get-devices --filter provider.name=my.devicefarmer.com
 ```
 
 - Push a local file to the device and execute it:
 
 ```sh
-farmhand --exec-file path/to/hello
+lariat --exec-file path/to/hello
 ```
 
 - Run a command on all arm64 devices:
 
 ```sh
-farmhand --command "echo hello" --filter abi=arm64-v8a
+lariat --command "echo hello" --filter abi=arm64-v8a
 ```
 
 - Push files to the device:
 
 ```sh
-farmhand --push-files path/to/files
+lariat --push-files path/to/files
 ```
 
 ### Results
 
-Farmhand returns results for each device that met the filtering criteria.
+Lariat returns results for each device that met the filtering criteria.
 
 The following is sample output for an `echo` command:
 
 ```sh
-farmhand --command "echo hello" --filter abi=arm64-v8a
+lariat --command "echo hello" --filter abi=arm64-v8a
 
 "A12345": {
     "output": "hello",
@@ -186,29 +186,29 @@ Remember that a device will either have a 'reason' field (if it was unavailable)
 
 ## Docker Image
 
-For convenience, an official Farmhand Docker image is available.
+For convenience, an official Lariat Docker image is available.
 
 To use the docker image, simply run
 
 ```sh
-docker run --rm -v ~/.android:/root/.android:ro -v ~/.farmhand:/root/.farmhand:ro ghcr.io/zetier/farmhand:latest -c 'echo hello'
+docker run --rm -v ~/.android:/root/.android:ro -v ~/.lariat:/root/.lariat:ro ghcr.io/zetier/lariat:latest -c 'echo hello'
 ```
 
 This docker run command creates and runs a Docker container based on the
-ghcr.io/zetier/farmhand:latest image. It performs the following actions:
+ghcr.io/zetier/lariat:latest image. It performs the following actions:
 
 - Creates a read-only volume mount for the .android directory on the host
   machine, which contains ADB keys, to the /root/.android directory inside the
   container.
 
-- Creates a read-only volume mount for the .farmhand directory on the host
-  machine, which contains the farmhand configuration file, to the
-  /root/.farmhand directory inside the container.
+- Creates a read-only volume mount for the .lariat directory on the host
+  machine, which contains the lariat configuration file, to the
+  /root/.lariat directory inside the container.
 
 - The --rm flag ensures that the container is automatically removed after it
   exits.
 
-- Inside the container, the command `farmhand -c 'echo hello'` is executed,
+- Inside the container, the command `lariat -c 'echo hello'` is executed,
   which prints "hello" as the output on every lockable device on your
   DeviceFarmer range.
 
@@ -218,14 +218,14 @@ command accordingly to provide the correct paths for volume mounting.
 
 ## CI Integration
 
-Farmhand was designed for simple integration into CI pipelines. Below is an
+Lariat was designed for simple integration into CI pipelines. Below is an
 example of a GitLab job that tests a binary built in the pipeline on a
 DeviceFarmer range:
 
 ```yml
-.farmhand-test:
+.lariat-test:
   image:
-    name: ghcr.io/zetier/farmhand:latest
+    name: ghcr.io/zetier/lariat:latest
     entrypoint: [""]
   stage: test
   before_script:
@@ -233,9 +233,9 @@ DeviceFarmer range:
     - mkdir -p ~/.android
     - echo "$CI_ADB_PUB_KEY" > ~/.android/adbkey.pub
     - echo "$CI_ADB_PRI_KEY" > ~/.android/adbkey
-    - echo "$CI_FARMHAND_CONFIG" -> ~/.farmhand/config.json
+    - echo "$CI_FARMHAND_CONFIG" -> ~/.lariat/config.json
   script:
-    - farmhand --file $BINARY > test_results.json
+    - lariat --file $BINARY > test_results.json
   artifacts:
     paths:
       - test_results.json
@@ -243,7 +243,7 @@ DeviceFarmer range:
 # Assumes a `build-android-binary` job that produces `android_binary`
 # as an artifact.
 android-range-test:
-  extends: .farmhand-test
+  extends: .lariat-test
   variables:
     BINARY: android_binary
   needs:
@@ -253,27 +253,27 @@ android-range-test:
 
 ## Notes
 
-- Farmhand will lock devices before performing any operations to ensure
+- Lariat will lock devices before performing any operations to ensure
   exclusive access. After the operations have been completed, the devices will
   be unlocked.
 
 - Make sure to provide the correct path to the ADB private key file via
-  `farmhand_config.json` if it is different from the default location
+  `lariat_config.json` if it is different from the default location
   (`~/.android/adbkey`)
 
-- By default, Farmhand will enumerate ~every~ device on the DeviceFarmer range,
+- By default, Lariat will enumerate ~every~ device on the DeviceFarmer range,
   including ones not `present` or `ready`. You can modify this as needed by
   specifying `--filter ready=true present=true` if needed.
 
 ## Development Install
 
-NOTE: Farmhand is developed on and regularly tested with Ubuntu 18.04 with
+NOTE: Lariat is developed on and regularly tested with Ubuntu 18.04 with
 Python 3.8. Other distributions and versions may work, but are currently
 untested.
 
 1. Clone the repository
 
-2. Install dependencies along with the Farmhand python package
+2. Install dependencies along with the Lariat python package
 
     ```sh
     sudo apt-get update

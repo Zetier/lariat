@@ -12,4 +12,4 @@ COPY src .
 # Install the Python dependencies
 RUN pip install --no-cache-dir .
 
-ENTRYPOINT ["farmhand"]
+ENTRYPOINT ["lariat"]

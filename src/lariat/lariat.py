@@ -33,7 +33,7 @@ ECHO_EXIT_CODE = " ; echo " + EXIT_CODE_TOKEN + "$?"
 # if it is kept idle for this period (in milliseconds);
 LOCK_TIMEOUT_MS = 5000000
 DEFAULT_ADB_PRI_KEY = Path.home() / ".android/adbkey"
-DEFAULT_CFG_FILE = Path.home() / ".farmhand/config.json"
+DEFAULT_CFG_FILE = Path.home() / ".lariat/config.json"
 
 
 def parse_args() -> argparse.Namespace:

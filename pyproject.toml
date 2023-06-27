@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "farmhand-util"
+name = "lariat"
 version = "0.1.0"
 authors = [{ name = "Zetier" }]
 description = "Python utility for interfacing with the Device Farmer API"
@@ -19,7 +19,7 @@ classifiers = [
 ]
 
 keywords = [
-    'farmhand',
+    'lariat',
     'devicefarmer',
     'stf',
     'automation',
@@ -29,8 +29,8 @@ keywords = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/Zetier/farmhand"
-"Bug Tracker" = "https://github.com/Zetier/farmhand/issues"
+"Homepage" = "https://github.com/Zetier/lariat"
+"Bug Tracker" = "https://github.com/Zetier/lariat/issues"
 
 [project.scripts]
-farmhand = "farmhand.farmhand:main"
+lariat = "lariat.lariat:main"
