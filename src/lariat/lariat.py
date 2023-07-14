@@ -588,6 +588,7 @@ def process_command(
     )
     try:
         result = adb_device.shell(command=command + ECHO_EXIT_CODE)
+        print(result)
         return result_to_dict(str(result))
     except Exception as adb_exception:
         logging.warning("Failed to run shell command %s: %s", command, adb_exception)
@@ -614,7 +615,7 @@ def process_exec_file(
     result = push_and_exec_file(adb_device, exec_file)
     if not result:
         return build_unavailable("ADB failure executing file")
-
+    print(result)
     return result_to_dict(result)
 
 
