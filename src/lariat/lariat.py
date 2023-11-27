@@ -709,7 +709,7 @@ def process_device(
                     device_result = process_push_files(
                         adb_device, args.push_files, stf_device
                     )
-                elif args.command:
+                if args.command:
                     device_result = process_command(
                         adb_device, args.command, stf_device
                     )
