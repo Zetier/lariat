@@ -184,7 +184,7 @@ def api_connect(
 def get_devices(
     client: SwaggerClient,
     request_opts: typing.Dict,
-    fields=typing.Optional[typing.List[str]],
+    fields: typing.Optional[typing.Set[typing.Any]],
 ) -> typing.List[typing.Dict[typing.Any, typing.Any]]:
     """Retrieve a list of devices from the DeviceFarmer API.
 
