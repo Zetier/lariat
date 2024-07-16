@@ -18,8 +18,6 @@ from bravado.client import SwaggerClient
 from bravado.exception import HTTPError
 from bravado.requests_client import RequestsClient
 
-logging.basicConfig(level=logging.INFO)
-
 # Ignore cert warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -95,6 +93,14 @@ def parse_args() -> argparse.Namespace:
         + ".",
     )
 
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase log level. Can be supplied multiple times to further increase log verbosity (e.g. -vv)",
+    )
+
     parsed_args = parser.parse_args()
 
     if not (
@@ -134,6 +140,15 @@ def load_config(
     Returns:
         dict: The loaded configuration as a dictionary.
     """
+    log_level = logging.WARNING
+    match parsed_args.verbose:
+        case 0:
+            pass
+        case 1:
+            log_level = logging.INFO
+        case _:
+            log_level = logging.DEBUG
+    logging.basicConfig(level=log_level)
 
     cfg = None
     try:

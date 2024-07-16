@@ -78,6 +78,7 @@ optional arguments:
                         regex matched
   -p PUSH_FILES, --push-files PUSH_FILES
                         Specify the path to the file or directory to be pushed to the device. Pushes to /data/local/tmp/.
+  -v, --verbose         Increase log level. Can be supplied multiple times to further increase log verbosity (e.g. -vv)
 ```
 
 ### Device Fields
