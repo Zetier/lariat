@@ -46,13 +46,23 @@ following:
 - `adb_private_key_path`: (Optional) Path to a non-default adb private key.
     Defaults to `~/.android/adbkey` if not specified
 
+- `adb_shell_default_read_timeout_s`: (Optional) Default total timeout (in
+    seconds) for reading data from a device. This value may need to be increased
+    from the default value of 10s for certain device operations.
+
 ```json
 {
    "access_token": "ef02da4fb3884395af4cf011061a2318ca5e9a04abd04de59c5c99afcce0b7fz",
    "device_farmer_url": "https://my.device-farmer-instance.com/",
-   "adb_private_key_path": "/custom/path/adb.key"
+   "adb_private_key_path": "/custom/path/adb.key",
+   "adb_shell_default_read_timeout_s": 32.5
 }
 ```
+
+All config options can be specified on the command line to override any
+defaults set in the config file. For example, the command line option
+`--device_farmer_url` can be used to override the DeviceFarmer URL set in the
+config file.
 
 ## Usage
 
@@ -259,7 +269,7 @@ android-range-test:
   be unlocked.
 
 - Make sure to provide the correct path to the ADB private key file via
-  `lariat_config.json` if it is different from the default location
+  `~/.lariat/config.json` if it is different from the default location
   (`~/.android/adbkey`)
 
 - By default, Lariat will enumerate ~every~ device on the DeviceFarmer range,
