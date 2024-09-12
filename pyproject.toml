@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lariat"
-version = "0.1.1"
+version = "0.2.0"
 authors = [{ name = "Zetier" }]
 description = "Python utility for interfacing with the Device Farmer API"
 readme = "README.md"
