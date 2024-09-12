@@ -14,11 +14,10 @@ from pathlib import Path
 import urllib3
 from adb_shell.adb_device import AdbDeviceTcp
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
+from adb_shell.constants import DEFAULT_READ_TIMEOUT_S
 from bravado.client import SwaggerClient
 from bravado.exception import HTTPError
 from bravado.requests_client import RequestsClient
-
-logging.basicConfig(level=logging.INFO)
 
 # Ignore cert warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -34,6 +33,103 @@ ECHO_EXIT_CODE = " ; echo " + EXIT_CODE_TOKEN + "$?"
 LOCK_TIMEOUT_MS = 5000000
 DEFAULT_ADB_PRI_KEY = Path.home() / ".android/adbkey"
 DEFAULT_CFG_FILE = Path.home() / ".lariat/config.json"
+
+
+class Config:
+    """Lariat Configuration"""
+
+    __config: typing.Dict[str, typing.Any] = {}
+
+    __required_options = {
+        "access_token": ("DeviceFarmer access token", lambda s: s),
+        "device_farmer_url": ("DeviceFarmer URL", lambda s: s),
+    }
+
+    __optional_options = {
+        "adb_shell_default_read_timeout_s": (
+            "Default adb_shell timeout in seconds",
+            lambda f: float(f),
+        ),
+    }
+
+    @staticmethod
+    def get(opt: str) -> typing.Any:
+        """Get the configuration option specified by opt"""
+        return Config.__config.get(opt)
+
+    @staticmethod
+    def all_opts() -> (
+        typing.Dict[str, typing.Tuple[str, typing.Callable[[str], typing.Any]]]
+    ):
+        """Returns a dict of all supported configuration options"""
+        d = Config.required_opts()
+        d.update(Config.optional_opts())
+        return d
+
+    @staticmethod
+    def required_opts() -> (
+        typing.Dict[str, typing.Tuple[str, typing.Callable[[str], typing.Any]]]
+    ):
+        """Returns a dict of all required configuration options"""
+        return Config.__required_options
+
+    @staticmethod
+    def optional_opts() -> (
+        typing.Dict[str, typing.Tuple[str, typing.Callable[[str], typing.Any]]]
+    ):
+        """Returns a dict of all optional configuration options"""
+        return Config.__optional_options
+
+    @staticmethod
+    def init_config(args: argparse.Namespace) -> None:
+        """Initializes the Config
+
+        Args:
+            args (Argparse Namespace): Command line arguments
+        """
+
+        #
+        # Set default configuration values
+        #
+        Config.__config["adb_shell_default_read_timeout_s"] = DEFAULT_READ_TIMEOUT_S
+        Config.__config["adb_private_key_path"] = DEFAULT_ADB_PRI_KEY
+
+        #
+        # Override defaults with configuration file values
+        #
+        try:
+            with open(args.config, "r", encoding="utf-8") as file:
+                Config.__config.update(json.load(file))
+        except FileNotFoundError as e:
+            logging.error(
+                "Config file '%s' not found. Use --config to specify if using a non-default config file",
+                args.config,
+            )
+            raise e
+        except json.JSONDecodeError as e:
+            logging.exception("Invalid JSON format in config file '%s'", args.config)
+            raise e
+
+        #
+        # Override defaults with command line options
+        #
+        arg_vars = vars(args)
+        for opt in Config.all_opts():
+            if arg_vars[opt]:
+                Config.__config[opt] = arg_vars[opt]
+
+        #
+        # Ensure required options are set
+        #
+        for opt in Config.required_opts():
+            if not opt in Config.__config:
+                raise KeyError(
+                    "Required config option '{opt}' is missing. Update config file or specify on command line with --{opt}".format(
+                        opt=opt
+                    )
+                )
+
+        logging.debug("Lariat Config: %s", Config.__config)
 
 
 def parse_args() -> argparse.Namespace:
@@ -95,6 +191,21 @@ def parse_args() -> argparse.Namespace:
         + ".",
     )
 
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase log level. Can be supplied multiple times to further increase log verbosity (e.g. -vv)",
+    )
+
+    for opt, desc in Config.all_opts().items():
+        parser.add_argument(
+            "--" + opt,
+            help=desc[0],
+            type=desc[1],
+        )
+
     parsed_args = parser.parse_args()
 
     if not (
@@ -120,33 +231,14 @@ def parse_args() -> argparse.Namespace:
                 "--exec-file argument does not exist: " + str(parsed_args.exec_file)
             )
 
+    log_level = logging.WARNING
+    if parsed_args.verbose == 1:
+        log_level = logging.INFO
+    elif parsed_args.verbose > 1:
+        log_level = logging.DEBUG
+    logging.basicConfig(level=log_level)
+
     return parsed_args
-
-
-def load_config(
-    config_file: Path,
-) -> typing.Optional[typing.Dict[typing.Any, typing.Any]]:
-    """Load a JSON configuration file.
-
-    Args:
-        config_file (Path): The path to the JSON configuration file.
-
-    Returns:
-        dict: The loaded configuration as a dictionary.
-    """
-
-    cfg = None
-    try:
-        with open(config_file, "r", encoding="utf-8") as file:
-            cfg = json.load(file)
-    except FileNotFoundError:
-        logging.error(
-            "Config file '%s' not found. Use --config to specify if using a non-default config file",
-            config_file,
-        )
-    except json.JSONDecodeError:
-        logging.exception("Invalid JSON format in config file '%s'", config_file)
-    return cfg
 
 
 def api_connect(
@@ -168,7 +260,7 @@ def api_connect(
     # The user can provide either the base URL of their Device Farmer instance (e.g myorg.devicefarmer.com)
     # or a full path to their Swagger 2.0 spec file (e.g myorg.devicefarmer.com/custom/path/swagger.json)
     # If the base URL is provided, the standard path for the Swagger spec file is appended
-    if ext == ".json" or ext == ".yaml":
+    if ext in (".json", ".yaml"):
         spec_url = api_url
     else:
         spec_url = api_url + "/api/v1/swagger.json"
@@ -333,7 +425,11 @@ def adb_connect_device(
 
     try:
         device = AdbDeviceTcp(ip_addr, port, default_transport_timeout_s=60)
-        device.connect(rsa_keys=[signer], auth_timeout_s=1)
+        device.connect(
+            rsa_keys=[signer],
+            auth_timeout_s=1,
+            read_timeout_s=Config.get("adb_shell_default_read_timeout_s"),
+        )
     except Exception:
         logging.exception("Failed to connect to adb device %s", device_url)
         return None
@@ -357,20 +453,28 @@ def push_and_exec_file(device: AdbDeviceTcp, bin_path: Path) -> str:
     binary_file = os.path.basename(bin_path)
 
     try:
-        device.push(bin_path.expanduser(), DEVICE_PUSH_DIR + binary_file)
+        device.push(
+            bin_path.expanduser(),
+            DEVICE_PUSH_DIR + binary_file,
+            read_timeout_s=Config.get("adb_shell_default_read_timeout_s"),
+        )
     except Exception:
         logging.exception("Failed to push file")
         return ""
 
     try:
-        device.shell(CHMOD_755 % (DEVICE_PUSH_DIR + binary_file))
+        device.shell(
+            CHMOD_755 % (DEVICE_PUSH_DIR + binary_file),
+            read_timeout_s=Config.get("adb_shell_default_read_timeout_s"),
+        )
     except Exception:
         logging.exception("Failed to set file permissions")
         return ""
 
     try:
         cmd_result = device.shell(
-            DEVICE_PUSH_DIR + binary_file + ECHO_EXIT_CODE, read_timeout_s=60
+            DEVICE_PUSH_DIR + binary_file + ECHO_EXIT_CODE,
+            read_timeout_s=Config.get("adb_shell_default_read_timeout_s"),
         )
     except Exception:
         logging.exception("Failed to exec file")
@@ -400,7 +504,9 @@ def push_files(device: AdbDeviceTcp, filepath: Path) -> bool:
     for file in file_list:
         try:
             device.push(
-                local_path=file, device_path=DEVICE_PUSH_DIR + os.path.basename(file)
+                local_path=file,
+                device_path=DEVICE_PUSH_DIR + os.path.basename(file),
+                read_timeout_s=Config.get("adb_shell_default_read_timeout_s"),
             )
         except Exception:
             logging.exception("Failed to push files at path %s to device", filepath)
@@ -587,7 +693,10 @@ def process_command(
         stf_device.get("serial"),
     )
     try:
-        result = adb_device.shell(command=command + ECHO_EXIT_CODE)
+        result = adb_device.shell(
+            command=command + ECHO_EXIT_CODE,
+            read_timeout_s=Config.get("adb_shell_default_read_timeout_s"),
+        )
         return result_to_dict(str(result))
     except Exception as adb_exception:
         logging.warning("Failed to run shell command %s: %s", command, adb_exception)
@@ -711,7 +820,9 @@ def process_device(
                     )
                 if args.command:
                     device_result = process_command(
-                        adb_device, args.command, stf_device
+                        adb_device,
+                        args.command,
+                        stf_device,
                     )
                 elif args.exec_file:
                     logging.info(
@@ -737,30 +848,22 @@ def main() -> int:
 
     args = parse_args()
 
-    config = load_config(config_file=args.config)
-    if not config:
+    try:
+        Config.init_config(args)
+    except Exception as e:
+        logging.error("Failed to initialize config: %s", e)
         return 1
-
-    device_farmer_url = config.get("device_farmer_url")
-    if not device_farmer_url:
-        logging.error("Missing required config value 'device_farmer_url'")
-        return 1
-
-    access_token = config.get("access_token")
-    if not access_token:
-        logging.error("Missing required config value 'access_token'")
-        return 1
-
-    adb_private_key_path = config.get("adb_private_key_path", DEFAULT_ADB_PRI_KEY)
 
     try:
         swagger_client, request_options = api_connect(
-            api_url=device_farmer_url, api_token=access_token
+            api_url=Config.get("device_farmer_url"),
+            api_token=Config.get("access_token"),
         )
 
     except Exception:
         logging.error(
-            "Failed to connect to device farmer instance at %s", device_farmer_url
+            "Failed to connect to device farmer instance at %s",
+            Config.get("device_farmer_url"),
         )
         return 1
 
@@ -794,7 +897,7 @@ def main() -> int:
 
     try:
         key_signer = PythonRSASigner.FromRSAKeyPath(
-            rsa_key_path=(os.path.abspath(adb_private_key_path))
+            rsa_key_path=(os.path.abspath(Config.get("adb_private_key_path")))
         )
         # Use the key_signer object for authentication
     except (IOError, ValueError):
@@ -805,7 +908,11 @@ def main() -> int:
 
     for stf_device in stf_devices:
         device_serial, result = process_device(
-            stf_device, swagger_client, request_options, args, key_signer
+            stf_device,
+            swagger_client,
+            request_options,
+            args,
+            key_signer,
         )
         results[device_serial] = result
 
