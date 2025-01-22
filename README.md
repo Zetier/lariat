@@ -170,17 +170,18 @@ The following is sample output for an `echo` command:
 
 ```sh
 lariat --command "echo hello" --filter abi=arm64-v8a
-
-"A12345": {
-    "output": "hello",
-    "exitcode": 0,
-},
-"B54321": {
-    "output": "hello",
-    "exitcode": 0,
-},
-"C678910": {
-    "reason": "Device is currently in use",
+{
+    "A12345": {
+        "output": "hello",
+        "exitcode": 0,
+    },
+    "B54321": {
+        "output": "hello",
+        "exitcode": 0,
+    },
+    "C678910": {
+        "reason": "Device is currently in use",
+    }
 }
 ```
 
